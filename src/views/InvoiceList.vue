@@ -108,6 +108,11 @@
           Next
         </button>
       </div>
+
+      <!-- Total Amount -->
+      <div class="mt-4 text-right font-bold text-lg text-gray-800 dark:text-gray-200">
+        Total Amount: ${{ totalAmount.toFixed(2) }}
+      </div>
     </div>
   </div>
 </template>
@@ -128,6 +133,11 @@ const sortField = ref('date')
 const sortAsc = ref(true)
 
 const totalPages = computed(() => Math.ceil(totalCount.value / perPage) || 1)
+
+// Compute total amount of currently displayed invoices
+const totalAmount = computed(() =>
+  invoices.value.reduce((sum, inv) => sum + (inv.amount || 0), 0)
+)
 
 const fetchInvoices = async (p = page.value) => {
   page.value = p
@@ -155,7 +165,7 @@ const fetchInvoices = async (p = page.value) => {
   const { data, count, error } = await query
   if (error) console.error('Error fetching invoices:', error.message)
   else {
-    invoices.value = data
+    invoices.value = data || []
     totalCount.value = count || 0
   }
 }
@@ -176,5 +186,4 @@ const changeSort = (field) => {
 
 onMounted(() => fetchInvoices(1))
 </script>
-
 

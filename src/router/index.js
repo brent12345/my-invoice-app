@@ -6,12 +6,13 @@ import Login from '@/views/Login.vue'
 import Register from '@/views/Register.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import InvoiceForm from '@/views/InvoiceForm.vue'
-import InvoiceList from '@/views/InvoiceList.vue'   // ← import InvoiceList
+import InvoiceList from '@/views/InvoiceList.vue'
+import InvoiceInsights from '@/views/InvoiceInsights.vue'  // ← import here
 
 const routes = [
-  { path: '/',        name: 'Home',       component: Home },
-  { path: '/login',   name: 'Login',      component: Login },
-  { path: '/register',name: 'Register',   component: Register },
+  { path: '/',        name: 'Home',        component: Home },
+  { path: '/login',   name: 'Login',       component: Login },
+  { path: '/register',name: 'Register',    component: Register },
   {
     path: '/dashboard',
     name: 'Dashboard',
@@ -20,7 +21,7 @@ const routes = [
   },
   {
     path: '/invoices',
-    name: 'InvoiceList',                     // ← new listing route
+    name: 'InvoiceList',
     component: InvoiceList,
     meta: { requiresAuth: true }
   },
@@ -28,6 +29,12 @@ const routes = [
     path: '/invoices/new',
     name: 'NewInvoice',
     component: InvoiceForm,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/insights',            // ← new insights route
+    name: 'Insights',
+    component: InvoiceInsights,
     meta: { requiresAuth: true }
   },
 ]
