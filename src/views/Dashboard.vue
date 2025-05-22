@@ -1,17 +1,19 @@
 <template>
   <div class="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
     <div class="max-w-3xl mx-auto space-y-6">
-      <!-- Category Selector -->
-      <div class="flex justify-center">
+      <!-- Category Selector & Insights Link -->
+      <div class="flex items-center justify-center space-x-4">
         <select v-model="categoryFilter"
                 @change="fetchTotals"
                 class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600">
           <option value="all">All Categories</option>
-          <option value="Office">Office</option>
-          <option value="Car">Car</option>
-          <option value="Shipping">Shipping</option>
-          <option value="Miscellaneous">Miscellaneous</option>
+          <option v-for="cat in categories" :key="cat.id" :value="cat['Category Types']">
+            {{ cat['Category Types'] }}
+          </option>
         </select>
+        <router-link to="/insights" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+          Invoice Insights
+        </router-link>
       </div>
 
       <!-- Summary Boxes -->
@@ -32,6 +34,9 @@
           </p>
         </div>
       </div>
+
+      <!-- Category Manager -->
+      <CategoryManager />
 
       <!-- ChatGPT Assistant Card -->
       <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
@@ -59,9 +64,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
+import CategoryManager from '@/components/CategoryManager.vue'
+import { useRouter } from 'vue-router'
 
 // Category filter
 const categoryFilter = ref('all')
+const categories = ref([])
 
 // Summary totals
 const creditTotal = ref(0)
@@ -72,7 +80,41 @@ const message = ref('')
 const response = ref('')
 const loading = ref(false)
 
-const askChatGPT = async () => {
+const router = useRouter()
+
+// Load categories from table
+async function loadCategories() {
+  const { data, error } = await supabase
+    .from('Categories')
+    .select('id, "Category Types"')
+    .order('"Category Types"', { ascending: true })
+  if (error) console.error('Error loading categories:', error.message)
+  else categories.value = data || []
+}
+
+// Fetch totals based on filters
+async function fetchTotals() {
+  let creditsQuery = supabase.from('invoices').select('amount')
+  let debitsQuery  = supabase.from('invoices').select('amount')
+
+  if (categoryFilter.value !== 'all') {
+    creditsQuery = creditsQuery.eq('category', categoryFilter.value)
+    debitsQuery  = debitsQuery.eq('category', categoryFilter.value)
+  }
+
+  // Sum credits
+  const { data: creditData, error: errC } = await creditsQuery.eq('type', 'credit')
+  if (errC) console.error('Credit fetch error:', errC.message)
+  else creditTotal.value = creditData.reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
+
+  // Sum debits
+  const { data: debitData, error: errD } = await debitsQuery.eq('type', 'debit')
+  if (errD) console.error('Debit fetch error:', errD.message)
+  else debitTotal.value = debitData.reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
+}
+
+// ChatGPT invocation
+async function askChatGPT() {
   loading.value = true
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -97,27 +139,8 @@ const askChatGPT = async () => {
   loading.value = false
 }
 
-const fetchTotals = async () => {
-  // Build base query
-  let creditsQuery = supabase.from('invoices').select('amount')
-  let debitsQuery = supabase.from('invoices').select('amount')
-
-  // Apply category filter if not 'all'
-  if (categoryFilter.value !== 'all') {
-    creditsQuery = creditsQuery.eq('category', categoryFilter.value)
-    debitsQuery = debitsQuery.eq('category', categoryFilter.value)
-  }
-
-  // Sum credits
-  const { data: creditData, error: errC } = await creditsQuery.eq('type', 'credit')
-  if (errC) console.error('Credit fetch error:', errC.message)
-  else creditTotal.value = creditData.reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
-
-  // Sum debits
-  const { data: debitData, error: errD } = await debitsQuery.eq('type', 'debit')
-  if (errD) console.error('Debit fetch error:', errD.message)
-  else debitTotal.value = debitData.reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
-}
-
-onMounted(() => fetchTotals())
+onMounted(async () => {
+  await loadCategories()
+  await fetchTotals()
+})
 </script>
