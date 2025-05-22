@@ -272,7 +272,7 @@ async function runFetchInvoices() {
   invoicesList.value = []
   hasFetched.value = false
   try {
-    const res = await fetch('/functions/smooth-handler', {
+    const res = await fetch('https://agrzzbpqibouaulrmnzz.functions.supabase.co/smooth-handler', {
       method: 'POST', headers: {
         'Content-Type': 'application/json',
         apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
