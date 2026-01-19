@@ -3,15 +3,21 @@
     <div class="max-w-3xl mx-auto space-y-6">
       <!-- Category Selector & Insights Link -->
       <div class="flex items-center justify-center space-x-4">
-        <select v-model="categoryFilter"
-                @change="fetchTotals"
-                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600">
+        <select
+          v-model="categoryFilter"
+          @change="fetchTotals"
+          class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600"
+        >
           <option value="all">All Categories</option>
-          <option v-for="cat in categories" :key="cat.id" :value="cat['Category Types']">
-            {{ cat['Category Types'] }}
+          <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+            {{ cat.name }}
           </option>
         </select>
-        <router-link to="/insights" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+
+        <router-link
+          to="/insights"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        >
           Invoice Insights
         </router-link>
       </div>
@@ -42,14 +48,18 @@
       <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
         <h2 class="text-2xl font-bold text-blue-700 dark:text-blue-300">Invoice Assistant</h2>
 
-        <textarea v-model="message"
-                  placeholder="Ask ChatGPT about invoices..."
-                  rows="5"
-                  class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600 resize-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"></textarea>
+        <textarea
+          v-model="message"
+          placeholder="Ask ChatGPT about invoices..."
+          rows="5"
+          class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600 resize-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200"
+        ></textarea>
 
-        <button @click="askChatGPT"
-                :disabled="loading"
-                class="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition">
+        <button
+          @click="askChatGPT"
+          :disabled="loading"
+          class="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition"
+        >
           {{ loading ? 'Asking GPT...' : 'Ask ChatGPT' }}
         </button>
 
@@ -67,7 +77,7 @@ import { supabase } from '@/lib/supabase'
 import CategoryManager from '@/components/CategoryManager.vue'
 import { useRouter } from 'vue-router'
 
-// Category filter
+// Category filter & list
 const categoryFilter = ref('all')
 const categories = ref([])
 
@@ -82,38 +92,67 @@ const loading = ref(false)
 
 const router = useRouter()
 
-// Load categories from table
+// Load categories
 async function loadCategories() {
-  const { data, error } = await supabase
-    .from('Categories')
-    .select('id, "Category Types"')
-    .order('"Category Types"', { ascending: true })
-  if (error) console.error('Error loading categories:', error.message)
-  else categories.value = data || []
-}
+  try {
+    const { data, error, status } = await supabase
+      .from('categories')
+      .select('id, name')
+      .order('name', { ascending: true })
 
-// Fetch totals based on filters
-async function fetchTotals() {
-  let creditsQuery = supabase.from('invoices').select('amount')
-  let debitsQuery  = supabase.from('invoices').select('amount')
+    console.log('[Dashboard] Categories Status:', status)
+    console.log('[Dashboard] Categories Data:', data)
+    console.log('[Dashboard] Categories Error:', error)
 
-  if (categoryFilter.value !== 'all') {
-    creditsQuery = creditsQuery.eq('category', categoryFilter.value)
-    debitsQuery  = debitsQuery.eq('category', categoryFilter.value)
+    if (error) throw error
+
+    categories.value = data || []
+  } catch (err) {
+    console.error('[Dashboard] Error loading categories:', err.message)
   }
-
-  // Sum credits
-  const { data: creditData, error: errC } = await creditsQuery.eq('type', 'credit')
-  if (errC) console.error('Credit fetch error:', errC.message)
-  else creditTotal.value = creditData.reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
-
-  // Sum debits
-  const { data: debitData, error: errD } = await debitsQuery.eq('type', 'debit')
-  if (errD) console.error('Debit fetch error:', errD.message)
-  else debitTotal.value = debitData.reduce((sum, inv) => sum + parseFloat(inv.amount), 0)
 }
 
-// ChatGPT invocation
+// Fetch totals using the 'type' column (debit/credit)
+async function fetchTotals() {
+  try {
+    let query = supabase.from('invoices').select('amount, type, category_id')
+
+    // Category filter
+    if (categoryFilter.value !== 'all') {
+      query = query.eq('category_id', categoryFilter.value)
+    }
+
+    const { data, error } = await query
+    if (error) throw error
+
+    let credits = 0
+    let debits = 0
+
+    data.forEach(inv => {
+      const amt = parseFloat(inv.amount || 0)
+      if (inv.type === 'credit') {
+        credits += amt
+      } else if (inv.type === 'debit') {
+        debits += amt
+      }
+      // If type is null or other value → ignore or handle as needed
+    })
+
+    creditTotal.value = credits
+    debitTotal.value = debits
+
+    console.log('[Dashboard] Totals calculated:', {
+      credits,
+      debits,
+      rows: data.length,
+      rawDataSample: data.slice(0, 3) // first 3 rows for debug
+    })
+  } catch (err) {
+    console.error('[Dashboard] Error fetching totals:', err.message)
+  }
+}
+
+// ChatGPT (unchanged)
 async function askChatGPT() {
   loading.value = true
   try {

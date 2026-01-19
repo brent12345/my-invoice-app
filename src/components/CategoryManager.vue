@@ -42,7 +42,7 @@
           <!-- List existing categories -->
           <ul class="max-h-60 overflow-y-auto mb-2">
             <li v-for="cat in categories" :key="cat.id" class="flex items-center justify-between py-2 border-b dark:border-gray-700">
-              <span class="text-gray-800 dark:text-gray-200">{{ cat['Category Types'] }}</span>
+              <span class="text-gray-800 dark:text-gray-200">{{ cat.name }}</span>  <!-- Fixed: use 'name' -->
               <button @click="removeCategory(cat.id)"
                       :disabled="deletingId === cat.id"
                       class="text-red-600 hover:text-red-800 disabled:opacity-50">
@@ -66,71 +66,72 @@ const newCategory = ref('')
 const adding = ref(false)
 const deletingId = ref(null)
 const message = ref('')
-const messageType = ref('')  // 'success' or 'error'
+const messageType = ref('')
 
-// Fetch categories from the "Categories" table
 async function fetchCategories() {
   message.value = ''
-  const { data, error } = await supabase
-    .from('Categories')
-    .select('id, "Category Types"')
-    .order('"Category Types"', { ascending: true })
+  try {
+    const { data, error } = await supabase
+      .from('categories')                    // lowercase after rename
+      .select('id, name')
+      .order('name', { ascending: true })
 
-  if (error) {
-    console.error('Error fetching categories:', error.message)
-    message.value = 'Failed to load categories.'
-    messageType.value = 'error'
-  } else {
+    if (error) throw error
     categories.value = data || []
+  } catch (err) {
+    console.error('Error fetching categories:', err)
+    message.value = 'Failed to load categories'
+    messageType.value = 'error'
   }
 }
 
-// Add a new category
 async function addCategory() {
   if (!newCategory.value.trim()) return
   adding.value = true
   message.value = ''
 
-  const { error } = await supabase
-    .from('Categories')
-    .insert([{ "Category Types": newCategory.value.trim() }])
+  try {
+    const { error } = await supabase
+      .from('categories')
+      .insert([{ name: newCategory.value.trim() }])
 
-  if (error) {
-    console.error('Error adding category:', error.message)
-    message.value = 'Failed to add category.'
-    messageType.value = 'error'
-  } else {
+    if (error) throw error
     message.value = 'Category added successfully.'
     messageType.value = 'success'
     newCategory.value = ''
-    fetchCategories()
+    await fetchCategories()
+  } catch (err) {
+    console.error('Error adding category:', err)
+    message.value = 'Failed to add category'
+    messageType.value = 'error'
+  } finally {
+    adding.value = false
   }
-  adding.value = false
 }
 
-// Remove a category by id
 async function removeCategory(id) {
   deletingId.value = id
   message.value = ''
 
-  const { error } = await supabase
-    .from('Categories')
-    .delete()
-    .eq('id', id)
+  try {
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id)
 
-  if (error) {
-    console.error('Error removing category:', error.message)
-    message.value = 'Failed to remove category.'
-    messageType.value = 'error'
-  } else {
+    if (error) throw error
     message.value = 'Category removed successfully.'
     messageType.value = 'success'
-    fetchCategories()
+    await fetchCategories()
+  } catch (err) {
+    console.error('Error removing category:', err)
+    message.value = 'Failed to remove category'
+    messageType.value = 'error'
+  } finally {
+    deletingId.value = null
   }
-  deletingId.value = null
 }
 
-// Close modal and reset input/message
 function closeModal() {
   showModal.value = false
   newCategory.value = ''
