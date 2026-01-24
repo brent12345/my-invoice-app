@@ -26,14 +26,14 @@
 
         <!-- Date Filter -->
         <div class="flex flex-col">
-          <label class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Date</label>
+          <label class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Date</label>
           <input v-model="dateFilter" @change="fetchInvoices(1)" type="date" class="w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" />
         </div>
 
         <!-- Search Filter -->
         <div class="flex flex-col flex-1 min-w-[200px]">
-          <label class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Search by Name</label>
-          <input v-model="searchFilter" @keyup.enter="fetchInvoices(1)" type="text" placeholder="Enter invoice name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" />
+          <label class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Search by Invoice # or Customer</label>
+          <input v-model="searchFilter" @keyup.enter="fetchInvoices(1)" type="text" placeholder="Search..." class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" />
         </div>
 
         <button @click="fetchInvoices(1)" class="px-4 py-2 mt-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Filter</button>
@@ -45,12 +45,12 @@
           <thead class="bg-gray-200 dark:bg-gray-700">
             <tr>
               <th class="px-4 py-2">Category</th>
-              <th class="px-4 py-2">Name</th>
+              <th class="px-4 py-2">Invoice #</th>
               <th class="px-4 py-2 text-right">Amount</th>
               <th class="px-4 py-2 text-right">Tax</th>
-              <th class="px-4 py-2 text-center">Date</th>
-              <th class="px-4 py-2 text-left">Type</th>
-              <th class="px-4 py-2">Description</th>
+              <th class="px-4 py-2 text-center">Issue Date</th>
+              <th class="px-4 py-2 text-center">Type</th>
+              <th class="px-4 py-2 text-center">Description</th>
               <th class="px-4 py-2 text-center">Receipt</th>
               <th class="px-4 py-2 text-right">Actions</th>
             </tr>
@@ -62,7 +62,7 @@
               <td class="px-4 py-2 text-right">${{ (invoice.amount || 0).toFixed(2) }}</td>
               <td class="px-4 py-2 text-right">${{ (invoice.tax || 0).toFixed(2) }}</td>
               <td class="px-4 py-2 text-center">{{ invoice.issue_date || '—' }}</td>
-              <td class="px-4 py-2 text-left">{{ invoice.type || '—' }}</td>
+              <td class="px-4 py-2 text-center">{{ invoice.type || '—' }}</td>
               <td class="px-4 py-2">{{ invoice.description || '—' }}</td>
               <td class="px-4 py-2 text-center">
                 <button v-if="attachments[invoice.id]" @click="openModal(invoice.id)" class="mx-auto">
@@ -70,7 +70,7 @@
                 </button>
                 <span v-else class="text-gray-500">—</span>
               </td>
-              <td class="px-4 py-2">
+              <td class="px-4 py-2 text-right">
                 <div class="flex flex-wrap justify-end gap-2">
                   <button
                     @click="startEdit(invoice)"
@@ -78,7 +78,7 @@
                     title="Edit this invoice"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6 6M3 21h6l12-12a2.828 2.828 0 00-4-4L5 17H3v2z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-4.5 4.5l6-6" />
                     </svg>
                     Edit
                   </button>
@@ -113,58 +113,86 @@
       </div>
 
       <!-- Receipt Modal -->
-      <div v-if="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-        <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-md">
-          <img :src="currentImage" class="w-full max-w-md" alt="Receipt" />
-          <div class="flex justify-end mt-4">
-            <button @click="modalOpen = false" class="px-4 py-2 bg-red-600 text-white rounded">Close</button>
-          </div>
+      <div v-if="modalOpen" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-md max-w-4xl w-11/12">
+          <button @click="modalOpen = false" class="absolute top-4 right-4 text-gray-600 dark:text-gray-300 text-3xl font-bold">✕</button>
+          <img :src="currentImage" class="w-full h-auto max-h-[80vh] object-contain p-4" alt="Receipt" />
         </div>
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div v-if="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-md">
           <p class="text-lg text-gray-800 dark:text-gray-200 mb-4">Are you sure you want to delete this invoice?</p>
-          <div class="flex justify-end space-x-2">
-            <button @click="showDeleteModal = false" class="px-4 py-2 bg-gray-300 text-gray-800 rounded">Cancel</button>
-            <button @click="deleteInvoice(selectedInvoiceId)" class="px-4 py-2 bg-red-600 text-white rounded">Yes, Delete</button>
+          <div class="flex justify-end space-x-4">
+            <button @click="showDeleteModal = false" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">Cancel</button>
+            <button @click="deleteInvoice(selectedInvoiceId)" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
           </div>
         </div>
       </div>
 
       <!-- Edit Modal -->
-      <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+      <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white dark:bg-gray-800 p-6 rounded shadow-md w-full max-w-lg">
           <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Edit Invoice</h3>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Invoice Number</label>
-          <input v-model="editInvoice.invoice_number" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+          <div class="space-y-4">
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Invoice Number</label>
+              <input v-model="editInvoice.invoice_number" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            </div>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
-          <input v-model="editInvoice.customer_name" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Customer Name</label>
+              <input v-model="editInvoice.customer_name" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            </div>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
-          <input type="number" v-model.number="editInvoice.amount" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Amount</label>
+              <input type="number" step="0.01" v-model.number="editInvoice.amount" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            </div>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tax</label>
-          <input type="number" v-model.number="editInvoice.tax" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Tax</label>
+              <input type="number" step="0.01" v-model.number="editInvoice.tax" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            </div>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Date</label>
-          <input type="date" v-model="editInvoice.issue_date" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Issue Date</label>
+              <input type="date" v-model="editInvoice.issue_date" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            </div>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
-          <select v-model="editInvoice.type" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
-            <option value="debit">Debit</option>
-            <option value="credit">Credit</option>
-          </select>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Due Date</label>
+              <input type="date" v-model="editInvoice.due_date" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white" />
+            </div>
 
-          <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
-          <textarea v-model="editInvoice.description" class="w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"></textarea>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+              <select v-model="editInvoice.type" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                <option value="debit">Debit</option>
+                <option value="credit">Credit</option>
+              </select>
+            </div>
 
-          <div class="flex justify-end space-x-2">
-            <button @click="showEditModal = false" class="px-4 py-2 bg-gray-300 text-gray-800 rounded">Cancel</button>
-            <button @click="saveInvoiceEdit()" class="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+              <textarea v-model="editInvoice.description" rows="3" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white"></textarea>
+            </div>
+
+            <div>
+              <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+              <select v-model="editInvoice.category_id" class="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:text-white">
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                  {{ cat.name }}
+                </option>
+              </select>
+            </div>
+
+            <div class="flex justify-end space-x-4 mt-6">
+              <button @click="showEditModal = false" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400">Cancel</button>
+              <button @click="saveInvoiceEdit" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Changes</button>
+            </div>
           </div>
         </div>
       </div>
@@ -293,9 +321,21 @@ function startEdit(invoice) {
 
 async function saveInvoiceEdit() {
   try {
+    const updateData = {
+      invoice_number: editInvoice.value.invoice_number,
+      customer_name: editInvoice.value.customer_name,
+      amount: editInvoice.value.amount,
+      tax: editInvoice.value.tax,
+      issue_date: editInvoice.value.issue_date,
+      due_date: editInvoice.value.due_date,
+      type: editInvoice.value.type,
+      description: editInvoice.value.description,
+      category_id: editInvoice.value.category_id
+    }
+
     const { error } = await supabase
       .from('invoices')
-      .update(editInvoice.value)
+      .update(updateData)
       .eq('id', editInvoice.value.id)
 
     if (error) throw error
@@ -336,5 +376,3 @@ onMounted(() => {
   fetchInvoices(1)
 })
 </script>
-
-
